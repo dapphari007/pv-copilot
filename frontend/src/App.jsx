@@ -1,137 +1,73 @@
 import { useEffect, useState } from 'react'
 import { api } from './api.js'
+import Analyze from './pages/Analyze.jsx'
+import History from './pages/History.jsx'
+import Settings from './pages/Settings.jsx'
+
+const NAV = [
+  { key: 'analyze', label: 'Analyze', icon: '🔬' },
+  { key: 'history', label: 'History', icon: '🗂️' },
+  { key: 'settings', label: 'Settings', icon: '⚙️' },
+]
 
 export default function App() {
+  const [page, setPage] = useState('analyze')
   const [status, setStatus] = useState(null)
-  const [narrative, setNarrative] = useState('')
-  const [caseId, setCaseId] = useState('PV-2026-00125')
-  const [reportDate, setReportDate] = useState('06-Jun-2026')
-  const [file, setFile] = useState(null)
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
-  const [result, setResult] = useState(null)
 
-  useEffect(() => {
-    api.status().then(setStatus).catch((e) => setError(String(e)))
-  }, [])
-
-  async function analyze() {
-    setLoading(true); setError(''); setResult(null)
-    try {
-      const res = file
-        ? await api.analyzeUpload(file, caseId, reportDate)
-        : await api.analyze(narrative, caseId, reportDate)
-      setResult(res)
-    } catch (e) {
-      setError(String(e))
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const a = result?.analysis
-  const e = result?.entities
-  const serious = a?.seriousness === 'Serious'
+  function refreshStatus() { api.status().then(setStatus).catch(() => {}) }
+  useEffect(() => { refreshStatus() }, [])
 
   return (
-    <div className="wrap">
-      <header className="hero">
-        <h1>💊 Pharmacovigilance AI Copilot</h1>
-        <p>React UI · extract safety entities, retrieve similar FAERS cases, and
-           generate an AI adverse-event report.</p>
-        {status && (
-          <div className="pills">
-            <span className="pill">LLM: {status.llm_available ? status.llm_model : 'fallback'}</span>
-            <span className="pill">Backend: {status.settings?.vector_backend}</span>
-            <span className="pill">Model: {status.settings?.embedding_model}</span>
-            <span className="pill">Engine: {status.settings?.rag_engine}</span>
-            <span className="pill">Cases: {status.case_count}</span>
-          </div>
-        )}
-      </header>
-
-      <section className="card">
-        <label>Adverse event narrative</label>
-        <textarea rows={6} value={narrative} onChange={(ev) => setNarrative(ev.target.value)}
-          placeholder="e.g. A 45-year-old female experienced severe skin rash and fever after taking Amoxicillin 500 mg orally..." />
-        <div className="row">
+    <div className="shell">
+      <aside className="sidebar">
+        <div className="brand">
+          <div className="logo">💊</div>
           <div>
-            <label>Or upload (TXT/PDF/DOCX)</label>
-            <input type="file" accept=".txt,.pdf,.docx"
-              onChange={(ev) => setFile(ev.target.files?.[0] || null)} />
-          </div>
-          <div>
-            <label>Case ID</label>
-            <input value={caseId} onChange={(ev) => setCaseId(ev.target.value)} />
-          </div>
-          <div>
-            <label>Report Date</label>
-            <input value={reportDate} onChange={(ev) => setReportDate(ev.target.value)} />
+            <div className="brand-title">PV Copilot</div>
+            <div className="brand-sub">Pharmacovigilance AI</div>
           </div>
         </div>
-        <button className="primary" disabled={loading || (!narrative.trim() && !file)} onClick={analyze}>
-          {loading ? 'Analyzing…' : '🔬 Analyze Case'}
-        </button>
-        {error && <div className="error">{error}</div>}
-      </section>
 
-      {result && (
-        <section className="results">
-          <div className="card">
-            <h3>Extracted entities</h3>
-            <div className="grid">
-              <Kv k="Drug" v={e.drug} />
-              <Kv k="Age" v={e.age} />
-              <Kv k="Gender" v={e.gender} />
-              <Kv k="Weight" v={e.weight} />
-            </div>
-            <p><b>Adverse events:</b> {(e.adverse_events || []).join(', ') || '—'}</p>
-          </div>
+        <nav>
+          {NAV.map((n) => (
+            <button key={n.key} className={`nav ${page === n.key ? 'active' : ''}`}
+              onClick={() => setPage(n.key)}>
+              <span className="nav-ic">{n.icon}</span>{n.label}
+            </button>
+          ))}
+        </nav>
 
-          <div className="card">
-            <h3>AI analysis</h3>
-            <div className="badges">
-              <span className={serious ? 'badge red' : 'badge green'}>
-                Seriousness: {a.seriousness}
-              </span>
-              <span className="badge blue">Causality: {a.causality}</span>
-              <span className="badge gray">Confidence: {Number(a.confidence_score).toFixed(2)}</span>
-            </div>
-            <p>{a.summary}</p>
-            <b>Medical insights</b>
-            <ul>{(a.medical_insights || []).map((x, i) => <li key={i}>{x}</li>)}</ul>
-            <b>Safety observations</b>
-            <ul>{(a.safety_observations || []).map((x, i) => <li key={i}>{x}</li>)}</ul>
-            <small>Engine: {a.analysis_source} · Retrieved: {a.retrieved_case_count}</small>
-          </div>
+        <div className="side-status">
+          <div className={`dotc ${status ? 'up' : 'down'}`} />
+          {status ? 'API connected' : 'API offline'}
+          {status && (
+            <ul>
+              <li>LLM · <b>{status.llm_available ? 'Groq' : 'fallback'}</b></li>
+              <li>DB · <b>{status.settings?.vector_backend}</b></li>
+              <li>Model · <b>{status.settings?.embedding_model}</b></li>
+              <li>Engine · <b>{status.settings?.rag_engine}</b></li>
+              <li>Cases · <b>{status.case_count}</b></li>
+            </ul>
+          )}
+        </div>
+        <div className="side-foot">FDA FAERS 2026Q1 · decision-support only</div>
+      </aside>
 
-          <div className="card">
-            <h3>Similar FAERS cases ({result.retrieved.length})</h3>
-            {result.retrieved.map((c, i) => (
-              <details key={i}>
-                <summary>id {c.primaryid} · similarity {Number(c.similarity).toFixed(2)}</summary>
-                <p>{c.narrative}</p>
-              </details>
-            ))}
+      <main className="content">
+        <header className="topbar">
+          <h1>{NAV.find((n) => n.key === page)?.label}</h1>
+          <div className="topbar-pills">
+            {status && <>
+              <span className="pill">{status.llm_model}</span>
+              <span className="pill">{status.settings?.vector_backend} · {status.settings?.embedding_model}</span>
+            </>}
           </div>
+        </header>
 
-          <div className="card">
-            <h3>Download report</h3>
-            <p className="final">{result.report.final_classification}</p>
-            {result.id ? (
-              <div className="downloads">
-                <a href={api.reportUrl(result.id, 'pdf')}>📄 PDF</a>
-                <a href={api.reportUrl(result.id, 'xlsx')}>📊 Excel</a>
-                <a href={api.reportUrl(result.id, 'json')}>🧾 JSON</a>
-              </div>
-            ) : <small>Saving failed — downloads unavailable.</small>}
-          </div>
-        </section>
-      )}
+        {page === 'analyze' && <Analyze status={status} />}
+        {page === 'history' && <History />}
+        {page === 'settings' && <Settings status={status} onSaved={refreshStatus} />}
+      </main>
     </div>
   )
-}
-
-function Kv({ k, v }) {
-  return <div className="kv"><span>{k}</span><b>{v || '—'}</b></div>
 }

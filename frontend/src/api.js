@@ -6,15 +6,15 @@ async function jsonFetch(path, options = {}) {
     headers: { 'Content-Type': 'application/json' },
     ...options,
   })
-  if (!res.ok) {
-    const detail = await res.text()
-    throw new Error(`${res.status}: ${detail}`)
-  }
+  if (!res.ok) throw new Error(`${res.status}: ${await res.text()}`)
   return res.json()
 }
 
 export const api = {
   status: () => jsonFetch('/status'),
+  getSettings: () => jsonFetch('/settings'),
+  saveSettings: (body) =>
+    jsonFetch('/settings', { method: 'POST', body: JSON.stringify(body) }),
   analyze: (narrative, caseId, reportDate) =>
     jsonFetch('/analyze', {
       method: 'POST',
@@ -28,6 +28,7 @@ export const api = {
     if (!res.ok) throw new Error(`${res.status}: ${await res.text()}`)
     return res.json()
   },
-  history: () => jsonFetch('/history'),
+  history: (limit = 100) => jsonFetch(`/history?limit=${limit}`),
+  getCase: (rowId) => jsonFetch(`/cases/${rowId}`),
   reportUrl: (rowId, fmt) => `${BASE}/cases/${rowId}/report.${fmt}`,
 }
