@@ -60,7 +60,7 @@ bash startup.sh --models both --backend milvus --start all -y   # non-interactiv
 The FAERS vector indexes are large and **not** stored in git. Download the
 prebuilt artifacts and drop them into `data/` to skip the embedding step:
 
-**▶ Google Drive:** https://drive.google.com/drive/folders/1I-I-KqBcR3yM4kERajA9CdCbMmPaE-gY?usp=sharing
+**▶ Google Drive:** https://drive.google.com/drive/folders/1SmcXkIBRnxPzassiCRqUuzklyERaBSwF?usp=sharing
 
 | File | Size | Needed for |
 | --- | --- | --- |
