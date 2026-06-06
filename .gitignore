@@ -1,0 +1,17 @@
+# Secrets
+.env
+
+# Generated RAG artefacts
+data/*.index
+data/*.parquet
+data/*.txt
+
+# FAERS raw dataset (large)
+faers_ascii_2026q1/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+.ipynb_checkpoints/
