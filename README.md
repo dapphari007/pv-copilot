@@ -1,10 +1,15 @@
 # 💊 Pharmacovigilance AI Copilot
 
 A GenAI-powered Pharmacovigilance (PV) assistant that automates adverse-event
-case analysis. Enter or upload an adverse-event narrative and the system
-extracts safety entities, retrieves similar historical cases from the **FDA
-FAERS 2026Q1** dataset via RAG, generates an AI case analysis (summary,
-seriousness, causality), and produces a downloadable structured PV report.
+case analysis. Enter or upload an adverse-event narrative and the system extracts
+safety entities, retrieves similar historical cases from the **FDA FAERS 2026Q1**
+dataset via RAG, generates an AI case analysis (summary, seriousness, causality),
+and produces a downloadable structured PV report.
+
+Ships with **two frontends** (a multipage Streamlit app and a React SPA) over a
+shared **FastAPI** backend, **switchable FAISS/Milvus** vector stores,
+**switchable MiniLM/BioBERT** embeddings, **local SQLite persistence**, and
+**rotating logs**.
 
 ## Pipeline
 
@@ -12,59 +17,73 @@ seriousness, causality), and produces a downloadable structured PV report.
 Input / Upload
    ↓  entity extraction (Groq LLM ⇄ FAERS-vocabulary rule fallback)
 Extracted entities
-   ↓  chunk → embed (all-MiniLM-L6-v2) → FAISS search over ~397K FAERS cases
+   ↓  chunk → embed (MiniLM / BioBERT) → search (FAISS / Milvus) over 397K FAERS cases
 Similar historical cases (RAG context)
-   ↓  LLM analysis grounded in retrieved cases
+   ↓  AI analysis (Native pipeline ⇄ LangChain LCEL chain)
 AI summary · seriousness (ICH E2A) · causality · insights
    ↓
-Structured PV report  →  PDF · Excel · JSON
+Structured PV report  →  PDF · Excel · JSON     (+ saved to SQLite)
 ```
 
 ## Architecture
 
-| Module | Responsibility |
+| Layer | Files |
 | --- | --- |
-| `config.py` | Paths, model names, env, FAERS code maps |
-| `src/data_loader.py` | Join FAERS ASCII tables → per-case narratives |
-| `src/dictionaries.py` | Drug/reaction vocab from FAERS (offline NER) |
-| `src/extraction.py` | Entity extraction (LLM + rule fallback) |
-| `src/chunking.py` | Sentence-aware text chunking |
-| `src/embeddings.py` | sentence-transformers wrapper |
-| `src/vector_store.py` | FAISS build / load / cosine search |
-| `src/rag.py` | Retrieval + context assembly |
-| `src/llm.py` | Groq client + robust JSON parsing |
-| `src/seriousness.py` | ICH E2A / FAERS OUTC seriousness rules |
-| `src/analysis.py` | AI case analysis (LLM + rule fallback) |
-| `src/report.py` | Report schema + PDF / Excel / JSON export |
-| `scripts/build_index.py` | One-time FAISS index build |
-| `app.py` | Streamlit UI |
+| **API (endpoints only)** | `main.py` (FastAPI) → delegates to `src/pipeline.py` |
+| **Orchestration** | `src/pipeline.py` (extract → retrieve → analyze → report → persist) |
+| **Streamlit UI** | `app.py` (Analyze), `pages/1_History.py`, `pages/2_Settings.py`, `src/ui_theme.py` |
+| **React UI** | `frontend/` (Vite + React, proxies `/api` → FastAPI) |
+| **Vector backends** | `src/vectordb.py` (dispatcher), `src/vector_store.py` (FAISS), `src/milvus_store.py` (Milvus) |
+| **Embeddings / RAG** | `src/embeddings.py`, `src/rag.py`, `src/rag_langchain.py` |
+| **NLP / analysis** | `src/extraction.py`, `src/analysis.py`, `src/seriousness.py`, `src/dictionaries.py` |
+| **Reports** | `src/report.py` (PDF/Excel/JSON) |
+| **Persistence / config** | `src/storage.py` (SQLite + uploads), `src/settings_store.py`, `config.py` |
+| **Cross-cutting** | `src/logging_config.py` (rotating logs → `logs/`) |
+| **Index build** | `scripts/build_index.py` |
 
 ## Setup
 
 ```powershell
-# 1. Install dependencies
 pip install -r requirements.txt
+copy .env.example .env          # paste GROQ_API_KEY (optional; rule-based without it)
 
-# 2. Configure the LLM (optional — app runs in rule-based mode without it)
-copy .env.example .env       # then paste your GROQ_API_KEY
-
-# 3. Build the FAERS RAG index (one-time; full dataset ≈ 397K cases)
-python scripts/build_index.py
-#   Quick smoke test instead:  $env:MAX_CASES=5000; python scripts/build_index.py
-
-# 4. Launch the app
-streamlit run app.py
+# Build the FAERS index (one-time). GPU strongly recommended.
+python scripts/build_index.py                          # MiniLM (FAISS)
+$env:EMBED_MODEL_KEY="biobert"; python scripts/build_index.py   # BioBERT (FAISS)
 ```
 
-## Design notes
+### Run the Streamlit app
+```powershell
+streamlit run app.py
+```
+Pages: **Analyze** · **History** (SQLite) · **Settings** (vector backend, model, engine).
 
-- **Graceful degradation.** Every AI step has a deterministic fallback, so the
-  app is fully functional with no API key — only the analysis quality changes.
-- **Grounded extraction.** The offline NER vocabulary is derived from the same
-  FAERS data the RAG index is built on, keeping extraction and retrieval aligned.
-- **Cosine retrieval.** Embeddings are L2-normalised and stored in a FAISS
-  inner-product index, so similarity scores are cosine similarities.
-- **Seriousness cross-check.** The rule engine (ICH E2A outcome codes) always
-  runs alongside the LLM and is surfaced in the report for auditability.
+### Run the FastAPI backend + React UI
+```powershell
+uvicorn main:app --reload --port 8000        # API at http://localhost:8000/docs
+cd frontend; npm install; npm run dev        # React at http://localhost:5173
+```
+
+### Optional: Milvus vector backend (Windows → Docker)
+```powershell
+docker run -d --name milvus -p 19530:19530 milvusdb/milvus:latest milvus run standalone
+$env:VECTOR_BACKEND="milvus"; python scripts/build_index.py    # ingest into Milvus
+# then pick "milvus" on the Settings page (or set VECTOR_BACKEND=milvus)
+```
+
+## GPU acceleration
+Embedding build auto-uses CUDA when a CUDA build of PyTorch is installed:
+```powershell
+pip install --force-reinstall --no-deps torch==2.12.0 --index-url https://download.pytorch.org/whl/cu126
+```
+On an RTX 4060 the 397K-case BioBERT build drops from ~3.5 h (CPU) to ~15 min.
+
+## Design notes
+- **Graceful degradation** — every AI step has a deterministic fallback; the app
+  works with no API key, no Milvus, and no GPU.
+- **Single source of truth** — `main.py` and Streamlit both call `pipeline.run_analysis`.
+- **Cosine retrieval** — normalised vectors in inner-product indexes (FAISS & Milvus).
+- **Auditability** — the ICH E2A rule engine always runs alongside the LLM; every
+  run is persisted to SQLite with its settings.
 
 > ⚠️ Decision-support only. Not a substitute for qualified medical review.

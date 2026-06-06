@@ -60,15 +60,22 @@ def main() -> None:
     print(f"      -> {vectors.shape[0]:,} vectors x {vectors.shape[1]}d "
           f"in {time.time() - t1:.1f}s")
 
-    print("[4/4] Building & saving FAISS index + metadata ...", flush=True)
-    index = vector_store.build_index(vectors, dim=model_info["dim"])
     meta = cases.reset_index()[["primaryid"] + META_COLUMNS]
-    vector_store.save_index(index, meta, model_key)
-    print(f"      -> index: {config.index_path(model_key)}")
-    print(f"      -> meta:  {config.meta_path(model_key)}")
+    backend = config.DEFAULT_VECTOR_BACKEND
+    if backend == "milvus":
+        print("[4/4] Ingesting vectors into Milvus ...", flush=True)
+        from src import milvus_store
+        milvus_store.ingest(vectors, meta, model_key)
+        print(f"      -> collection: {config.milvus_collection(model_key)}")
+    else:
+        print("[4/4] Building & saving FAISS index + metadata ...", flush=True)
+        index = vector_store.build_index(vectors, dim=model_info["dim"])
+        vector_store.save_index(index, meta, model_key)
+        print(f"      -> index: {config.index_path(model_key)}")
+        print(f"      -> meta:  {config.meta_path(model_key)}")
 
     print(f"\nDone in {time.time() - t0:.1f}s. Indexed {len(cases):,} FAERS cases "
-          f"with '{model_key}'.")
+          f"with '{model_key}' into '{backend}'.")
 
 
 if __name__ == "__main__":

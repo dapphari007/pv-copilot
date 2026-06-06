@@ -9,8 +9,11 @@ from __future__ import annotations
 from typing import Any
 
 import config
-from src import embeddings, vector_store
+from src import embeddings, vectordb
 from src.chunking import chunk_text
+from src.logging_config import get_logger
+
+log = get_logger("rag")
 
 
 def _build_query(narrative: str, entities: dict[str, Any] | None) -> str:
@@ -31,10 +34,13 @@ def retrieve_similar_cases(
     entities: dict[str, Any] | None = None,
     top_k: int | None = None,
     model_key: str | None = None,
+    backend: str | None = None,
 ) -> list[dict[str, Any]]:
     """Return similar historical FAERS cases for the given narrative."""
     model_key = model_key or config.DEFAULT_MODEL_KEY
-    if not vector_store.index_exists(model_key):
+    if not vectordb.index_exists(model_key, backend=backend):
+        log.info("No index for model=%s backend=%s; skipping retrieval.",
+                 model_key, backend)
         return []
     # For long documents, embed the first chunk (the lead narrative) as the query.
     query_text = _build_query(narrative, entities)
@@ -42,7 +48,11 @@ def retrieve_similar_cases(
     query_text = chunks[0] if chunks else query_text
 
     vector = embeddings.embed_query(query_text, model_key=model_key)
-    return vector_store.search(vector, model_key, top_k=top_k or config.TOP_K)
+    results = vectordb.search(vector, model_key, top_k=top_k or config.TOP_K,
+                              backend=backend)
+    log.info("Retrieved %d cases (model=%s, backend=%s)", len(results),
+             model_key, backend or "default")
+    return results
 
 
 def format_context(cases: list[dict[str, Any]]) -> str:

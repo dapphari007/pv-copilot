@@ -18,6 +18,14 @@ python-dotenv>=1.0
 langchain-core>=0.3
 langchain-groq>=0.2
 
+# --- FastAPI backend (main.py) ---
+fastapi>=0.115
+uvicorn[standard]>=0.30
+python-multipart>=0.0.9
+
+# --- Optional Milvus vector backend (server via Docker on Windows) ---
+pymilvus>=2.4
+
 # --- File parsing (uploads) ---
 pypdf>=4.2
 python-docx>=1.1

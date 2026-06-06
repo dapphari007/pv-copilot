@@ -9,6 +9,17 @@ data/*.txt
 # FAERS raw dataset (large)
 faers_ascii_2026q1/
 
+# Local persistence & runtime artefacts
+data/*.sqlite
+data/settings.json
+uploads/
+logs/
+
+# Node / React frontend
+node_modules/
+frontend/node_modules/
+frontend/dist/
+
 # Python
 __pycache__/
 *.pyc

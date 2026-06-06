@@ -102,6 +102,34 @@ def llm_available() -> bool:
 
 
 # --------------------------------------------------------------------------- #
+# Vector database backend (switchable: FAISS or Milvus)
+# --------------------------------------------------------------------------- #
+VECTOR_BACKENDS = ("faiss", "milvus")
+DEFAULT_VECTOR_BACKEND = os.getenv("VECTOR_BACKEND", "faiss")
+
+# Milvus connection. On Windows, Milvus Lite is unsupported — run Milvus
+# standalone via Docker and point MILVUS_URI at it (e.g. http://localhost:19530).
+MILVUS_URI = os.getenv("MILVUS_URI", "http://localhost:19530")
+MILVUS_TOKEN = os.getenv("MILVUS_TOKEN", "")  # for Zilliz Cloud / auth-enabled servers
+
+
+def milvus_collection(model_key: str) -> str:
+    """Per-embedding-model Milvus collection name."""
+    return f"faers_{model_key}"
+
+
+# --------------------------------------------------------------------------- #
+# Local persistence (SQLite + uploaded files)
+# --------------------------------------------------------------------------- #
+SQLITE_PATH = DATA_DIR / "pv_copilot.sqlite"
+UPLOAD_DIR = PROJECT_ROOT / "uploads"
+UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+
+# Runtime-editable settings (written by the Streamlit Settings page).
+SETTINGS_PATH = DATA_DIR / "settings.json"
+
+
+# --------------------------------------------------------------------------- #
 # FAERS reference code maps
 # --------------------------------------------------------------------------- #
 # Patient outcome codes (OUTC table). The "serious" subset follows ICH E2A.
