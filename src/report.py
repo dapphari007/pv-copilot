@@ -85,9 +85,9 @@ def build_report(
             for c in (retrieved_cases or [])
         ],
         "final_classification": (
-            "Serious Adverse Drug Reaction (ADR) — Requires Medical Review"
+            "Serious Adverse Drug Reaction (ADR) - Requires Medical Review"
             if analysis.get("seriousness") == "Serious"
-            else "Non-Serious Adverse Event — Routine Monitoring"
+            else "Non-Serious Adverse Event - Routine Monitoring"
         ),
         "generated_by": "Pharmacovigilance AI Copilot",
     }
@@ -140,81 +140,149 @@ def _sheet(name: str) -> str:
 
 def to_pdf(report: dict[str, Any]) -> bytes:
     from reportlab.lib import colors
+    from reportlab.lib.enums import TA_LEFT
     from reportlab.lib.pagesizes import A4
     from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
     from reportlab.lib.units import mm
     from reportlab.platypus import (
-        SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle,
+        HRFlowable, KeepTogether, Paragraph, SimpleDocTemplate, Spacer,
+        Table, TableStyle,
     )
+
+    # --- palette ---
+    NAVY = colors.HexColor("#10243e")
+    BLUE = colors.HexColor("#1a4f7a")
+    LIGHT = colors.HexColor("#eaf2f8")
+    ZEBRA = colors.HexColor("#f6f9fc")
+    BORDER = colors.HexColor("#cdd9e5")
+    RED = colors.HexColor("#b3261e")
+    GREEN = colors.HexColor("#1e7d3a")
+
+    serious = report["case_information"].get("Seriousness") == "Serious"
+    accent = RED if serious else GREEN
+
+    styles = getSampleStyleSheet()
+    title_st = ParagraphStyle("title", parent=styles["Title"], fontSize=18,
+                              textColor=colors.white, spaceAfter=0, leading=22)
+    sub_st = ParagraphStyle("sub", parent=styles["Normal"], fontSize=9,
+                            textColor=colors.HexColor("#c6d6e6"))
+    h2 = ParagraphStyle("h2", parent=styles["Heading2"], fontSize=11.5,
+                        textColor=BLUE, spaceBefore=12, spaceAfter=5, leading=14)
+    key_st = ParagraphStyle("key", parent=styles["Normal"], fontSize=9,
+                            fontName="Helvetica-Bold", textColor=NAVY, leading=12)
+    val_st = ParagraphStyle("val", parent=styles["Normal"], fontSize=9,
+                            textColor=colors.HexColor("#1f2d3d"), leading=12)
+    body = ParagraphStyle("body", parent=styles["BodyText"], fontSize=9.5,
+                          leading=14, alignment=TA_LEFT, spaceAfter=2)
+    badge_st = ParagraphStyle("badge", parent=styles["Normal"], fontSize=10,
+                              fontName="Helvetica-Bold", textColor=colors.white,
+                              alignment=1, leading=13)
+    foot_st = ParagraphStyle("foot", parent=styles["Normal"], fontSize=7.5,
+                             textColor=colors.HexColor("#8090a0"))
 
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(
         buffer, pagesize=A4,
-        topMargin=18 * mm, bottomMargin=18 * mm,
-        leftMargin=18 * mm, rightMargin=18 * mm,
+        topMargin=14 * mm, bottomMargin=16 * mm,
+        leftMargin=16 * mm, rightMargin=16 * mm,
         title="Pharmacovigilance AI Report",
+        author="Pharmacovigilance AI Copilot",
     )
-    styles = getSampleStyleSheet()
-    h1 = ParagraphStyle("h1", parent=styles["Title"], fontSize=18, spaceAfter=4)
-    h2 = ParagraphStyle(
-        "h2", parent=styles["Heading2"], fontSize=12,
-        textColor=colors.HexColor("#1a4f7a"), spaceBefore=10, spaceAfter=4,
-    )
-    body = styles["BodyText"]
+    avail_w = doc.width
 
-    flow: list[Any] = [
-        Paragraph("Adverse Event Case Report", h1),
-        Paragraph("Pharmacovigilance AI Copilot", styles["Italic"]),
-        Spacer(1, 8),
-    ]
+    # --- header band ---
+    ci = report["case_information"]
+    header = Table(
+        [[Paragraph("Adverse Event Case Report", title_st),
+          Paragraph(report["case_information"].get("Seriousness", ""), badge_st)],
+         [Paragraph("Pharmacovigilance AI Copilot &nbsp;&nbsp;|&nbsp;&nbsp; "
+                    f"Case {_xml(ci.get('Case ID', ''))} &nbsp;&nbsp;|&nbsp;&nbsp; "
+                    f"{_xml(ci.get('Report Date', ''))}", sub_st), ""]],
+        colWidths=[avail_w - 38 * mm, 38 * mm],
+    )
+    header.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (0, -1), NAVY),
+        ("BACKGROUND", (1, 0), (1, 0), accent),
+        ("BACKGROUND", (1, 1), (1, 1), NAVY),
+        ("SPAN", (0, 0), (0, 0)), ("SPAN", (0, 1), (0, 1)),
+        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ("LEFTPADDING", (0, 0), (0, -1), 10), ("RIGHTPADDING", (1, 0), (1, -1), 6),
+        ("TOPPADDING", (0, 0), (-1, -1), 7), ("BOTTOMPADDING", (0, 0), (-1, -1), 7),
+    ]))
 
     def kv_table(section: dict[str, Any]) -> Table:
-        rows = [[str(k), _cell(v)] for k, v in section.items()]
-        table = Table(rows, colWidths=[55 * mm, 110 * mm])
+        rows = [[Paragraph(str(k), key_st), Paragraph(_cell(v), val_st)]
+                for k, v in section.items()]
+        table = Table(rows, colWidths=[48 * mm, avail_w - 48 * mm])
         table.setStyle(TableStyle([
-            ("BACKGROUND", (0, 0), (0, -1), colors.HexColor("#eaf2f8")),
-            ("FONTNAME", (0, 0), (0, -1), "Helvetica-Bold"),
-            ("FONTSIZE", (0, 0), (-1, -1), 9),
-            ("GRID", (0, 0), (-1, -1), 0.4, colors.HexColor("#b0c4d4")),
+            ("BACKGROUND", (0, 0), (0, -1), LIGHT),
+            ("ROWBACKGROUNDS", (1, 0), (1, -1), [colors.white, ZEBRA]),
+            ("LINEBELOW", (0, 0), (-1, -1), 0.4, BORDER),
+            ("LINEAFTER", (0, 0), (0, -1), 0.4, BORDER),
+            ("BOX", (0, 0), (-1, -1), 0.5, BORDER),
             ("VALIGN", (0, 0), (-1, -1), "TOP"),
-            ("ROWBACKGROUNDS", (1, 0), (1, -1), [colors.white, colors.HexColor("#f7fafc")]),
-            ("LEFTPADDING", (0, 0), (-1, -1), 6),
-            ("TOPPADDING", (0, 0), (-1, -1), 3),
-            ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+            ("LEFTPADDING", (0, 0), (-1, -1), 7), ("RIGHTPADDING", (0, 0), (-1, -1), 7),
+            ("TOPPADDING", (0, 0), (-1, -1), 4), ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
         ]))
         return table
 
-    sections = [
-        ("Case Information", "case_information"),
-        ("Patient Information", "patient_information"),
-        ("Suspected Drug Information", "suspected_drug"),
-        ("Adverse Event Details", "adverse_event"),
-        ("Seriousness Assessment", "seriousness_assessment"),
-        ("Causality Assessment (AI-Assisted)", "causality_assessment"),
+    def section(title: str, key: str) -> KeepTogether:
+        return KeepTogether([Paragraph(title, h2), kv_table(report[key])])
+
+    flow: list[Any] = [
+        header, Spacer(1, 10),
+        section("Case Information", "case_information"),
+        section("Patient Information", "patient_information"),
+        section("Suspected Drug Information", "suspected_drug"),
+        section("Adverse Event Details", "adverse_event"),
+        section("Seriousness Assessment", "seriousness_assessment"),
+        section("Causality Assessment (AI-Assisted)", "causality_assessment"),
+        Paragraph("AI-Generated Narrative Summary", h2),
+        Paragraph(_xml(report["ai_narrative_summary"]) or "—", body),
+        Paragraph("AI Safety Insights", h2),
     ]
-    for title, key in sections:
-        flow.append(Paragraph(title, h2))
-        flow.append(kv_table(report[key]))
-
-    flow.append(Paragraph("AI-Generated Narrative Summary", h2))
-    flow.append(Paragraph(report["ai_narrative_summary"] or "—", body))
-
-    flow.append(Paragraph("AI Safety Insights", h2))
     for insight in report["ai_safety_insights"] or ["—"]:
-        flow.append(Paragraph(f"• {insight}", body))
+        flow.append(Paragraph(f"•&nbsp; {_xml(insight)}", body))
 
     flow.append(Paragraph("Attachments / Source Documents", h2))
     for doc_name in report.get("source_documents") or ["—"]:
-        flow.append(Paragraph(f"• {doc_name}", body))
+        flow.append(Paragraph(f"•&nbsp; {_xml(doc_name)}", body))
 
-    flow.append(Paragraph("Final Case Classification", h2))
-    flow.append(Paragraph(report["final_classification"], body))
+    # --- final classification banner ---
+    final = Table([[Paragraph(_xml(report["final_classification"]), badge_st)]],
+                  colWidths=[avail_w])
+    final.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, -1), accent),
+        ("TOPPADDING", (0, 0), (-1, -1), 8), ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
+    ]))
+    flow += [Spacer(1, 12), final, Spacer(1, 8),
+             HRFlowable(width="100%", thickness=0.5, color=BORDER),
+             Paragraph(
+                 f"Generated by {_xml(report.get('generated_by', 'PV AI Copilot'))} | "
+                 "Decision-support only - not a substitute for qualified medical "
+                 "review.", foot_st)]
 
-    doc.build(flow)
+    def _footer(canvas, doc_):
+        canvas.saveState()
+        canvas.setFont("Helvetica", 7.5)
+        canvas.setFillColor(colors.HexColor("#8090a0"))
+        canvas.drawRightString(doc_.pagesize[0] - 16 * mm, 9 * mm,
+                               f"Page {doc_.page}")
+        canvas.drawString(16 * mm, 9 * mm, str(ci.get("Case ID", "")))
+        canvas.restoreState()
+
+    doc.build(flow, onFirstPage=_footer, onLaterPages=_footer)
     return buffer.getvalue()
+
+
+def _xml(text: Any) -> str:
+    """Escape XML/markup-special chars so ReportLab Paragraph renders text safely."""
+    return (
+        str(text).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+    )
 
 
 def _cell(value: Any) -> str:
     if isinstance(value, list):
-        return ", ".join(str(v) for v in value) or "—"
-    return str(value) if value not in (None, "") else "—"
+        return _xml(", ".join(str(v) for v in value)) or "—"
+    return _xml(value) if value not in (None, "") else "—"

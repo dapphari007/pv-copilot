@@ -7,6 +7,7 @@ PDF / Excel / JSON downloads.
 from __future__ import annotations
 
 import io
+import re
 
 import streamlit as st
 
@@ -19,6 +20,39 @@ st.set_page_config(
     page_title="Pharmacovigilance AI Copilot",
     page_icon="💊",
     layout="wide",
+)
+
+st.markdown(
+    """
+    <style>
+      .block-container { padding-top: 2.2rem; max-width: 1200px; }
+      /* Hero banner */
+      .pv-hero {
+        background: linear-gradient(120deg, #10243e 0%, #1a4f7a 60%, #2a72a8 100%);
+        border-radius: 14px; padding: 1.3rem 1.6rem; margin-bottom: 1.2rem;
+        color: #fff; box-shadow: 0 6px 22px rgba(16,36,62,.25);
+      }
+      .pv-hero h1 { color:#fff; font-size:1.7rem; margin:0; font-weight:700; }
+      .pv-hero p { color:#cfe0f0; margin:.35rem 0 0; font-size:.92rem; }
+      .pv-pill { display:inline-block; background:rgba(255,255,255,.16);
+        border:1px solid rgba(255,255,255,.25); border-radius:999px;
+        padding:.12rem .7rem; font-size:.72rem; margin-right:.4rem; color:#eaf2f8; }
+      /* Metric cards */
+      div[data-testid="stMetric"] { background:#f6f9fc; border:1px solid #e2e9f0;
+        border-radius:10px; padding:.7rem .9rem; }
+      /* Tabs */
+      button[data-baseweb="tab"] { font-weight:600; }
+      /* Buttons */
+      .stDownloadButton button, div[data-testid="stFormSubmitButton"] button {
+        border-radius:9px; font-weight:600; }
+      /* Section badges */
+      .pv-serious { background:#fdecea; color:#b3261e; border:1px solid #f3b4ad;
+        padding:.45rem .8rem; border-radius:9px; font-weight:700; }
+      .pv-ok { background:#e8f5ec; color:#1e7d3a; border:1px solid #aedcbb;
+        padding:.45rem .8rem; border-radius:9px; font-weight:700; }
+    </style>
+    """,
+    unsafe_allow_html=True,
 )
 
 
@@ -150,10 +184,21 @@ with st.sidebar:
 # --------------------------------------------------------------------------- #
 # Main
 # --------------------------------------------------------------------------- #
-st.title("💊 Pharmacovigilance AI Copilot")
-st.caption(
-    "Extract safety entities, retrieve similar FAERS cases, and generate a "
-    "structured adverse-event report."
+st.markdown(
+    """
+    <div class="pv-hero">
+      <h1>💊 Pharmacovigilance AI Copilot</h1>
+      <p>Extract safety entities · retrieve similar FAERS cases · generate a
+         structured adverse-event report with AI seriousness &amp; causality.</p>
+      <div style="margin-top:.7rem">
+        <span class="pv-pill">FDA FAERS 2026Q1</span>
+        <span class="pv-pill">RAG over 397K cases</span>
+        <span class="pv-pill">Groq LLM</span>
+        <span class="pv-pill">ICH E2A seriousness</span>
+      </div>
+    </div>
+    """,
+    unsafe_allow_html=True,
 )
 
 with st.form("case_form"):
@@ -306,20 +351,22 @@ if results:
 
         st.divider()
         st.markdown("### ⬇️ Download Report")
+        raw_id = report["case_information"].get("Case ID") or "PV-report"
+        safe_id = re.sub(r"[^A-Za-z0-9._-]+", "_", str(raw_id)).strip("_") or "PV-report"
         d1, d2, d3 = st.columns(3)
         d1.download_button(
-            "PDF", report_mod.to_pdf(report),
-            file_name=f"{report['case_information']['Case ID']}.pdf",
+            "📄 PDF", report_mod.to_pdf(report),
+            file_name=f"{safe_id}.pdf",
             mime="application/pdf", use_container_width=True,
         )
         d2.download_button(
-            "Excel", report_mod.to_excel(report),
-            file_name=f"{report['case_information']['Case ID']}.xlsx",
+            "📊 Excel", report_mod.to_excel(report),
+            file_name=f"{safe_id}.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             use_container_width=True,
         )
         d3.download_button(
-            "JSON", report_mod.to_json(report),
-            file_name=f"{report['case_information']['Case ID']}.json",
+            "🧾 JSON", report_mod.to_json(report),
+            file_name=f"{safe_id}.json",
             mime="application/json", use_container_width=True,
         )
