@@ -55,11 +55,34 @@ bash startup.sh --models both --backend milvus --start all -y   # non-interactiv
 > On Windows, run it from Git Bash. Re-running is safe — existing indexes are
 > detected and reused. Prebuilt index files go in `data/`.
 
+## 📦 Prebuilt indexes (download instead of building)
+
+The FAERS vector indexes are large and **not** stored in git. Download the
+prebuilt artifacts and drop them into `data/` to skip the embedding step:
+
+**▶ Google Drive:** https://drive.google.com/drive/folders/1I-I-KqBcR3yM4kERajA9CdCbMmPaE-gY?usp=sharing
+
+| File | Size | Needed for |
+| --- | --- | --- |
+| `faers_minilm.index` | ~582 MB | MiniLM retrieval (FAISS) |
+| `faers_minilm_meta.parquet` | ~53 MB | MiniLM case metadata |
+| `faers_biobert.index` | ~1.2 GB | BioBERT retrieval (FAISS) |
+| `faers_biobert_meta.parquet` | ~53 MB | BioBERT case metadata |
+| `drug_vocab.txt` | ~0.4 MB | offline rule-based NER |
+| `reaction_vocab.txt` | ~0.15 MB | offline rule-based NER |
+
+> Place **all** of these in the `data/` folder (≈1.9 GB total). You only need the
+> pair(s) for the model(s) you intend to use. For the **Milvus** backend, after
+> placing the FAISS files run `python scripts/faiss_to_milvus.py`
+> (and `EMBED_MODEL_KEY=biobert python scripts/faiss_to_milvus.py`) to ingest —
+> no re-embedding required.
+
 ## Manual setup
 
 ```powershell
 pip install -r requirements.txt
 copy .env.example .env          # paste GROQ_API_KEY (optional; rule-based without it)
+#  ↳ or set the key later from the app's Settings page (React or Streamlit)
 
 # Build the FAERS index (one-time). GPU strongly recommended.
 python scripts/build_index.py                          # MiniLM (FAISS)

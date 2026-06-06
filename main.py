@@ -51,6 +51,10 @@ class SettingsRequest(BaseModel):
     top_k: int | None = None
 
 
+class GroqKeyRequest(BaseModel):
+    api_key: str = Field(..., min_length=1)
+
+
 # --------------------------------------------------------------------------- #
 # Meta
 # --------------------------------------------------------------------------- #
@@ -79,6 +83,20 @@ def get_settings() -> dict[str, Any]:
 @app.post("/settings")
 def update_settings(req: SettingsRequest) -> dict[str, Any]:
     return save_settings(req.model_dump(exclude_none=True))
+
+
+@app.post("/settings/groq-key")
+def set_groq_key(req: GroqKeyRequest) -> dict[str, Any]:
+    """Set the Groq API key at runtime (persisted to .env). Verifies it works."""
+    config.set_groq_key(req.api_key)
+    from src import llm
+    llm._client_for.cache_clear()  # drop any cached client for the old key
+    ok, detail = True, "Key set."
+    try:
+        llm.chat("test", "Reply with: OK", max_tokens=5)
+    except Exception as exc:
+        ok, detail = False, f"Key saved but a test call failed: {exc}"
+    return {"llm_available": config.llm_available(), "verified": ok, "detail": detail}
 
 
 # --------------------------------------------------------------------------- #

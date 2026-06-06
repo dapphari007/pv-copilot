@@ -15,6 +15,8 @@ export const api = {
   getSettings: () => jsonFetch('/settings'),
   saveSettings: (body) =>
     jsonFetch('/settings', { method: 'POST', body: JSON.stringify(body) }),
+  setGroqKey: (apiKey) =>
+    jsonFetch('/settings/groq-key', { method: 'POST', body: JSON.stringify({ api_key: apiKey }) }),
   analyze: (narrative, caseId, reportDate) =>
     jsonFetch('/analyze', {
       method: 'POST',

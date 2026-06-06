@@ -95,10 +95,43 @@ GROQ_BASE_URL = os.getenv("GROQ_BASE_URL", "https://api.groq.com/openai/v1")
 LLM_TEMPERATURE = float(os.getenv("LLM_TEMPERATURE", "0.1"))
 LLM_MAX_TOKENS = int(os.getenv("LLM_MAX_TOKENS", "1500"))
 
+# Runtime override set from the UI (takes precedence over the env value).
+_RUNTIME_GROQ_KEY: str | None = None
+
+
+def groq_key() -> str:
+    """The active Groq key — UI override first, then environment."""
+    return (_RUNTIME_GROQ_KEY or GROQ_API_KEY or "").strip()
+
 
 def llm_available() -> bool:
     """True when a Groq API key is configured; otherwise rule-based fallback is used."""
-    return bool(GROQ_API_KEY)
+    return bool(groq_key())
+
+
+def set_groq_key(key: str, persist: bool = True) -> None:
+    """Set the Groq key at runtime (from the UI) and optionally persist to .env."""
+    global _RUNTIME_GROQ_KEY
+    _RUNTIME_GROQ_KEY = (key or "").strip()
+    if persist:
+        _persist_env_var("GROQ_API_KEY", _RUNTIME_GROQ_KEY)
+
+
+def _persist_env_var(name: str, value: str) -> None:
+    """Insert/update a single ``NAME=value`` line in the project .env file."""
+    env_path = PROJECT_ROOT / ".env"
+    lines: list[str] = []
+    if env_path.exists():
+        lines = env_path.read_text(encoding="utf-8").splitlines()
+    found = False
+    for i, line in enumerate(lines):
+        if line.strip().startswith(f"{name}="):
+            lines[i] = f"{name}={value}"
+            found = True
+            break
+    if not found:
+        lines.append(f"{name}={value}")
+    env_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
 # --------------------------------------------------------------------------- #

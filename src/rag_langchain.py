@@ -94,7 +94,7 @@ def analyze_case_langchain(
 
     llm = ChatGroq(
         model=config.GROQ_MODEL,
-        api_key=config.GROQ_API_KEY,
+        api_key=config.groq_key(),
         temperature=config.LLM_TEMPERATURE,
         max_tokens=config.LLM_MAX_TOKENS,
         model_kwargs={"response_format": {"type": "json_object"}},

@@ -10,8 +10,21 @@ export default function Settings({ status, onSaved }) {
   const [settings, setSettings] = useState(null)
   const [saved, setSaved] = useState(false)
   const [error, setError] = useState('')
+  const [groqKey, setGroqKey] = useState('')
+  const [keyMsg, setKeyMsg] = useState(null)
+  const [keyBusy, setKeyBusy] = useState(false)
 
   useEffect(() => { api.getSettings().then(setSettings).catch((e) => setError(String(e))) }, [])
+
+  async function saveKey() {
+    if (!groqKey.trim()) return
+    setKeyBusy(true); setKeyMsg(null)
+    try {
+      const r = await api.setGroqKey(groqKey.trim())
+      setKeyMsg(r); setGroqKey(''); onSaved?.()
+    } catch (e) { setKeyMsg({ verified: false, detail: String(e) }) }
+    finally { setKeyBusy(false) }
+  }
 
   function set(key, value) { setSettings((s) => ({ ...s, [key]: value })); setSaved(false) }
 
@@ -43,6 +56,28 @@ export default function Settings({ status, onSaved }) {
         <div className="stat"><span>Milvus</span><b>{status.vector_backends?.milvus_installed ? 'installed' : 'no'}</b></div>
         <div className="stat"><span>Stored cases</span><b>{status.case_count}</b></div>
       </div>
+
+      <Card title="LLM — Groq API key">
+        <p className="muted" style={{ marginTop: 0 }}>
+          Status: {status.llm_available
+            ? <b style={{ color: 'var(--green)' }}>key configured ✓</b>
+            : <b style={{ color: 'var(--amber)' }}>not set (using rule-based fallback)</b>}
+        </p>
+        <label>Set / replace Groq API key</label>
+        <input type="password" value={groqKey} placeholder="gsk_…"
+          onChange={(e) => setGroqKey(e.target.value)} />
+        <button className="primary" disabled={keyBusy || !groqKey.trim()} onClick={saveKey}>
+          {keyBusy ? 'Verifying…' : '🔑 Save & verify key'}
+        </button>
+        {keyMsg && (
+          <Banner kind={keyMsg.verified ? 'ok' : 'warn'}>
+            {keyMsg.verified ? 'Key saved and verified — Groq is live.' : keyMsg.detail}
+          </Banner>
+        )}
+        <p className="muted" style={{ fontSize: '.78rem', marginBottom: 0 }}>
+          Stored in <code>.env</code>; applies immediately to the API. Restart Streamlit to pick it up there.
+        </p>
+      </Card>
 
       <Card title="Configuration">
         <label>Vector database</label>

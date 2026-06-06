@@ -18,15 +18,21 @@ class LLMError(RuntimeError):
     """Raised when the LLM backend is unavailable or returns an unusable reply."""
 
 
-@lru_cache(maxsize=1)
-def _client():
-    if not config.llm_available():
-        raise LLMError("GROQ_API_KEY is not configured.")
+@lru_cache(maxsize=4)
+def _client_for(key: str):
+    """Cache one Groq client per API key (so UI key changes take effect)."""
     try:
         from groq import Groq
     except ImportError as exc:  # pragma: no cover - dependency guard
         raise LLMError("The 'groq' package is not installed.") from exc
-    return Groq(api_key=config.GROQ_API_KEY)
+    return Groq(api_key=key)
+
+
+def _client():
+    key = config.groq_key()
+    if not key:
+        raise LLMError("Groq API key is not configured.")
+    return _client_for(key)
 
 
 def chat(

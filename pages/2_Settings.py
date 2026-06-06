@@ -30,6 +30,27 @@ d4.metric("LangChain", "ready" if rag_langchain.langchain_available() else "no")
 
 st.divider()
 
+st.markdown("#### LLM — Groq API key")
+if config.llm_available():
+    st.success("Groq API key is configured.")
+else:
+    st.warning("No Groq key — using the rule-based fallback.")
+with st.form("groq_key_form", clear_on_submit=True):
+    new_key = st.text_input("Set / replace Groq API key", type="password",
+                            placeholder="gsk_...")
+    if st.form_submit_button("🔑 Save & verify key") and new_key.strip():
+        config.set_groq_key(new_key.strip())
+        from src import llm
+        llm._client_for.cache_clear()
+        try:
+            llm.chat("test", "Reply with: OK", max_tokens=5)
+            st.success("Key saved to .env and verified — Groq is live.")
+        except Exception as exc:  # noqa: BLE001
+            st.error(f"Key saved but verification failed: {exc}")
+        st.rerun()
+
+st.divider()
+
 with st.form("settings_form"):
     st.markdown("#### Vector database")
     backend = st.radio(

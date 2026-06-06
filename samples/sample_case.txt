@@ -1,0 +1,7 @@
+Pharmacovigilance Case Narrative
+
+A 67-year-old male patient weighing 78 kg with a documented history of type 2 diabetes mellitus and chronic kidney disease (stage 3) was prescribed Metformin 1000 mg orally twice daily for glycaemic control. Therapy started on 02-Apr-2026.
+
+On 11-Apr-2026 the patient presented to the emergency department with severe nausea, vomiting, muscle pain, rapid breathing, and profound fatigue. Laboratory investigation revealed a markedly elevated blood lactate level and metabolic acidosis, consistent with lactic acidosis. The reaction was assessed as severe and life-threatening.
+
+The patient was admitted to the intensive care unit and required intravenous bicarbonate and haemodialysis. Metformin was discontinued immediately. The event was considered to be related to metformin accumulation in the setting of renal impairment. The patient gradually recovered over six days and was discharged in stable condition.

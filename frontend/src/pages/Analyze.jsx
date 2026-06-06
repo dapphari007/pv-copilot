@@ -28,10 +28,21 @@ export default function Analyze({ status }) {
 
   return (
     <div className="page">
-      <div className="page-head">
-        <h2>Analyze an Adverse Event</h2>
-        <p>Extract entities, retrieve similar FAERS cases, and generate an AI report.</p>
-      </div>
+      <section className="hero">
+        <div className="grid-bg" /><div className="glow" />
+        <div className="hero-inner">
+          <span className="eyebrow">✦ Pharmacovigilance AI Copilot</span>
+          <h1>Turn an adverse-event narrative<br />into a structured safety report.</h1>
+          <p>Extract safety entities, retrieve similar FAERS cases with semantic search,
+             and generate an AI seriousness &amp; causality assessment — in seconds.</p>
+          <div className="pills">
+            <span className="pill">FDA FAERS 2026Q1</span>
+            <span className="pill">RAG · 397K cases</span>
+            <span className="pill">{status?.llm_available ? status.llm_model : 'rule-based'}</span>
+            <span className="pill">ICH E2A</span>
+          </div>
+        </div>
+      </section>
 
       <Card title="Case input" right={
         <button className="link" onClick={() => setNarrative(sample)}>Use sample</button>
