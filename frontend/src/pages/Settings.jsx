@@ -2,6 +2,10 @@ import { useEffect, useState } from 'react'
 import { api } from '../api.js'
 import { Card, Spinner, Banner } from '../components/ui.jsx'
 
+// Top-K is kept functional (sent on save) but hidden from the UI for simplicity.
+// Flip to true to expose the slider again.
+const SHOW_TOPK = false
+
 export default function Settings({ status, onSaved }) {
   const [settings, setSettings] = useState(null)
   const [saved, setSaved] = useState(false)
@@ -68,9 +72,13 @@ export default function Settings({ status, onSaved }) {
           ))}
         </div>
 
-        <label>Similar cases to retrieve (Top-K): <b>{settings.top_k}</b></label>
-        <input type="range" min="1" max="15" value={settings.top_k}
-          onChange={(ev) => set('top_k', Number(ev.target.value))} />
+        {SHOW_TOPK && (
+          <>
+            <label>Similar cases to retrieve (Top-K): <b>{settings.top_k}</b></label>
+            <input type="range" min="1" max="15" value={settings.top_k}
+              onChange={(ev) => set('top_k', Number(ev.target.value))} />
+          </>
+        )}
 
         <button className="primary" onClick={save}>💾 Save settings</button>
         {saved && <Banner kind="ok">Settings saved.</Banner>}

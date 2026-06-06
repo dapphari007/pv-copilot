@@ -64,7 +64,12 @@ with st.form("settings_form"):
         horizontal=True,
     )
 
-    top_k = st.slider("Similar cases to retrieve (Top-K)", 1, 15, int(settings["top_k"]))
+    # Top-K kept functional but hidden for simplicity; flip to expose the slider.
+    SHOW_TOPK = False
+    if SHOW_TOPK:
+        top_k = st.slider("Similar cases to retrieve (Top-K)", 1, 15, int(settings["top_k"]))
+    else:
+        top_k = int(settings["top_k"])
 
     if st.form_submit_button("💾 Save settings", type="primary"):
         new = save_settings({
