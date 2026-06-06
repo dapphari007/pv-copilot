@@ -32,3 +32,6 @@ data/sample_report.pdf
 
 # Milvus docker volumes
 milvus_volumes/
+
+# Index zip for manual transfer
+*.zip

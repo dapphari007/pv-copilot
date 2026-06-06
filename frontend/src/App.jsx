@@ -3,7 +3,7 @@ import { api } from './api.js'
 import Analyze from './pages/Analyze.jsx'
 import History from './pages/History.jsx'
 import Settings from './pages/Settings.jsx'
-import { IconAnalyze, IconHistory, IconSettings } from './components/icons.jsx'
+import { IconAnalyze, IconHistory, IconSettings, IconSun, IconMoon } from './components/icons.jsx'
 
 const NAV = [
   { key: 'analyze', label: 'Analyze', Icon: IconAnalyze },
@@ -14,9 +14,14 @@ const NAV = [
 export default function App() {
   const [page, setPage] = useState('analyze')
   const [status, setStatus] = useState(null)
+  const [theme, setTheme] = useState(() => localStorage.getItem('pv-theme') || 'light')
 
   function refreshStatus() { api.status().then(setStatus).catch(() => setStatus(null)) }
   useEffect(() => { refreshStatus() }, [])
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme)
+    localStorage.setItem('pv-theme', theme)
+  }, [theme])
 
   return (
     <>
@@ -43,6 +48,10 @@ export default function App() {
                 {status.settings?.vector_backend} · {status.settings?.embedding_model}
               </span>
             )}
+            <button className="theme-toggle" title="Toggle theme"
+              onClick={() => setTheme((t) => (t === 'dark' ? 'light' : 'dark'))}>
+              {theme === 'dark' ? <IconSun width={17} height={17} /> : <IconMoon width={17} height={17} />}
+            </button>
           </div>
         </nav>
       </div>
