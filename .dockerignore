@@ -1,0 +1,15 @@
+.git
+.venv
+venv
+__pycache__
+*.pyc
+node_modules
+frontend/node_modules
+frontend/dist
+milvus_volumes/
+logs/
+uploads/
+.hf_cache/
+# Large raw dataset — not needed at runtime (index is mounted via ./data)
+faers_ascii_2026q1/
+.env

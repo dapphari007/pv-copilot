@@ -29,3 +29,6 @@ venv/
 
 # Generated demo report outputs
 data/sample_report.pdf
+
+# Milvus docker volumes
+milvus_volumes/
