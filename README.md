@@ -41,7 +41,21 @@ Structured PV report  →  PDF · Excel · JSON     (+ saved to SQLite)
 | **Cross-cutting** | `src/logging_config.py` (rotating logs → `logs/`) |
 | **Index build** | `scripts/build_index.py` |
 
-## Setup
+## Quickstart (one command)
+
+On a fresh machine, the bootstrap script sets up the venv, installs deps,
+configures `.env`, lets you **choose what to embed** (minilm / biobert / both)
+and the **backend** (faiss / milvus) — or shows where to drop prebuilt index
+files if you already have them — then starts all services:
+
+```bash
+bash startup.sh                 # interactive
+bash startup.sh --models both --backend milvus --start all -y   # non-interactive
+```
+> On Windows, run it from Git Bash. Re-running is safe — existing indexes are
+> detected and reused. Prebuilt index files go in `data/`.
+
+## Manual setup
 
 ```powershell
 pip install -r requirements.txt
