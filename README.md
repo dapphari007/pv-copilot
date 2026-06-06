@@ -124,3 +124,7 @@ On an RTX 4060 the 397K-case BioBERT build drops from ~3.5 h (CPU) to ~15 min.
   run is persisted to SQLite with its settings.
 
 > ⚠️ Decision-support only. Not a substitute for qualified medical review.
+
+## License
+
+Released under the [MIT License](LICENSE) — © 2026 Harish and Divya R.
