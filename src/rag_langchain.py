@@ -16,7 +16,7 @@ from typing import Any
 
 import config
 from src import analysis as analysis_mod
-from src import embeddings, vector_store
+from src import embeddings, vectordb
 
 
 def langchain_available() -> bool:
@@ -28,18 +28,20 @@ def langchain_available() -> bool:
     return config.llm_available()
 
 
-def _make_retriever(model_key: str, top_k: int):
-    """Build a LangChain retriever backed by our FAISS cosine search."""
+def _make_retriever(model_key: str, top_k: int, backend: str | None = None):
+    """Build a LangChain retriever backed by our vector-DB dispatcher (FAISS/Milvus)."""
     from langchain_core.documents import Document
     from langchain_core.retrievers import BaseRetriever
 
     class FaersRetriever(BaseRetriever):
         model_key: str = "minilm"
         top_k: int = 5
+        backend: str | None = None
 
         def _get_relevant_documents(self, query: str, *, run_manager=None):
             vector = embeddings.embed_query(query, model_key=self.model_key)
-            hits = vector_store.search(vector, self.model_key, top_k=self.top_k)
+            hits = vectordb.search(vector, self.model_key, top_k=self.top_k,
+                                   backend=self.backend)
             return [
                 Document(
                     page_content=h.get("narrative", ""),
@@ -52,7 +54,7 @@ def _make_retriever(model_key: str, top_k: int):
                 for h in hits
             ]
 
-    return FaersRetriever(model_key=model_key, top_k=top_k)
+    return FaersRetriever(model_key=model_key, top_k=top_k, backend=backend)
 
 
 def analyze_case_langchain(
@@ -60,6 +62,7 @@ def analyze_case_langchain(
     entities: dict[str, Any],
     model_key: str | None = None,
     top_k: int | None = None,
+    backend: str | None = None,
 ) -> dict[str, Any]:
     """Run analysis via a LangChain LCEL chain; returns analysis + retrieved cases."""
     model_key = model_key or config.DEFAULT_MODEL_KEY
@@ -69,7 +72,7 @@ def analyze_case_langchain(
     from langchain_core.prompts import ChatPromptTemplate
     from langchain_groq import ChatGroq
 
-    retriever = _make_retriever(model_key, top_k)
+    retriever = _make_retriever(model_key, top_k, backend)
     docs = retriever.invoke(narrative)
     retrieved = [
         {

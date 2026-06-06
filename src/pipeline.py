@@ -40,7 +40,8 @@ def run_analysis(
     entities = extraction.extract_entities(narrative)
 
     if engine == "LangChain" and rag_langchain.langchain_available():
-        lc = rag_langchain.analyze_case_langchain(narrative, entities, model_key)
+        lc = rag_langchain.analyze_case_langchain(
+            narrative, entities, model_key=model_key, backend=backend)
         retrieved, analysis = lc["retrieved"], lc["analysis"]
     else:
         retrieved = rag.retrieve_similar_cases(
