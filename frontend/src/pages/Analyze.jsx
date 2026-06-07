@@ -85,6 +85,7 @@ export default function Analyze({ status }) {
                 <Kv k="Gender" v={e.gender} /><Kv k="Weight" v={e.weight} />
                 <Kv k="Dosage" v={e.dosage} /><Kv k="Route" v={e.route} />
               </div>
+              <p><b>All reported drugs:</b> {(e.all_drugs || []).join(', ') || e.drug || '—'}</p>
               <p><b>Adverse events:</b> {(e.adverse_events || []).join(', ') || '—'}</p>
               <p><b>Indication:</b> {e.indication || '—'}</p>
             </Card>

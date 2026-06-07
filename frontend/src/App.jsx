@@ -1,12 +1,14 @@
 import { useEffect, useState } from 'react'
 import { api } from './api.js'
 import Analyze from './pages/Analyze.jsx'
+import Batch from './pages/Batch.jsx'
 import History from './pages/History.jsx'
 import Settings from './pages/Settings.jsx'
-import { IconAnalyze, IconHistory, IconSettings, IconSun, IconMoon } from './components/icons.jsx'
+import { IconAnalyze, IconBatch, IconHistory, IconSettings, IconSun, IconMoon } from './components/icons.jsx'
 
 const NAV = [
   { key: 'analyze', label: 'Analyze', Icon: IconAnalyze },
+  { key: 'batch', label: 'Batch', Icon: IconBatch },
   { key: 'history', label: 'History', Icon: IconHistory },
   { key: 'settings', label: 'Settings', Icon: IconSettings },
 ]
@@ -58,6 +60,7 @@ export default function App() {
 
       <main className="content">
         {page === 'analyze' && <Analyze status={status} />}
+        {page === 'batch' && <Batch />}
         {page === 'history' && <History />}
         {page === 'settings' && <Settings status={status} onSaved={refreshStatus} />}
       </main>

@@ -30,6 +30,27 @@ export const api = {
     if (!res.ok) throw new Error(`${res.status}: ${await res.text()}`)
     return res.json()
   },
+  analyzeBatch: async (files, reportDate = '') => {
+    const form = new FormData()
+    for (const f of files) form.append('files', f)
+    const qs = new URLSearchParams({ report_date: reportDate })
+    const res = await fetch(`${BASE}/analyze/batch?${qs}`, { method: 'POST', body: form })
+    if (!res.ok) throw new Error(`${res.status}: ${await res.text()}`)
+    return res.json()
+  },
+  analyzeBatchText: (narratives, reportDate = '') =>
+    jsonFetch('/analyze/batch-text', {
+      method: 'POST', body: JSON.stringify({ narratives, report_date: reportDate }),
+    }),
+  batchExportUrl: (fmt) => `${BASE}/batch/export.${fmt}`,
+  batchExport: async (ids, fmt) => {
+    const res = await fetch(`${BASE}/batch/export.${fmt}`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ids }),
+    })
+    if (!res.ok) throw new Error(`${res.status}: ${await res.text()}`)
+    return res.blob()
+  },
   history: (limit = 100) => jsonFetch(`/history?limit=${limit}`),
   getCase: (rowId) => jsonFetch(`/cases/${rowId}`),
   reportUrl: (rowId, fmt) => `${BASE}/cases/${rowId}/report.${fmt}`,

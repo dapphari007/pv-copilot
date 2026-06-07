@@ -38,7 +38,11 @@ def build_report(
             "Medical History": entities.get("medical_history") or "Not reported",
         },
         "suspected_drug": {
-            "Drug Name": entities.get("drug") or "Unknown",
+            "Drug Name (Primary Suspect)": entities.get("drug") or "Unknown",
+            "Other Reported Drugs": ", ".join(
+                d for d in entities.get("all_drugs", [])
+                if d and d != entities.get("drug")
+            ) or "None reported",
             "Dosage": entities.get("dosage") or "Not reported",
             "Route": entities.get("route") or "Not reported",
             "Therapy Start Date": entities.get("therapy_start_date") or "Not reported",

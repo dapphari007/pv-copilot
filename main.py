@@ -17,7 +17,9 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 import config
+from src import batch as batch_mod
 from src import extraction, report as report_mod, storage, vectordb
+from src.documents import read_document
 from src.logging_config import get_logger
 from src.pipeline import run_analysis
 from src.settings_store import load_settings, save_settings
@@ -122,7 +124,7 @@ async def analyze_upload(
     report_date: str = "",
 ) -> dict[str, Any]:
     data = await file.read()
-    text = _read_document(data, file.filename or "upload")
+    text = read_document(data, file.filename or "upload")
     if not text.strip():
         raise HTTPException(422, "Could not extract text from the uploaded file.")
     stored_path = storage.save_upload(data, file.filename or "upload")
@@ -130,6 +132,58 @@ async def analyze_upload(
         text, case_id=case_id, report_date=report_date, source="upload",
         file_path=stored_path, file_name=file.filename,
         source_documents=[file.filename or "uploaded document"],
+    )
+
+
+# --------------------------------------------------------------------------- #
+# Batch analysis (multiple files and/or narratives)
+# --------------------------------------------------------------------------- #
+class BatchTextRequest(BaseModel):
+    narratives: list[str] = Field(..., min_length=1)
+    report_date: str = ""
+
+
+class BatchExportRequest(BaseModel):
+    ids: list[str] = Field(..., min_length=1)
+
+
+@app.post("/analyze/batch")
+async def analyze_batch(
+    files: list[UploadFile] = File(...),
+    report_date: str = "",
+) -> dict[str, Any]:
+    """Analyze many uploaded files at once (proper concurrent batching)."""
+    items = [
+        batch_mod.BatchItem(file_name=f.filename, file_bytes=await f.read())
+        for f in files
+    ]
+    results = batch_mod.run_batch(items, report_date=report_date)
+    return {"count": len(results),
+            "ok": sum(1 for r in results if r.get("ok")), "results": results}
+
+
+@app.post("/analyze/batch-text")
+def analyze_batch_text(req: BatchTextRequest) -> dict[str, Any]:
+    """Analyze many free-text narratives at once."""
+    items = [batch_mod.BatchItem(text=t) for t in req.narratives if t.strip()]
+    if not items:
+        raise HTTPException(422, "No non-empty narratives provided.")
+    results = batch_mod.run_batch(items, report_date=req.report_date)
+    return {"count": len(results),
+            "ok": sum(1 for r in results if r.get("ok")), "results": results}
+
+
+@app.post("/batch/export.{fmt}")
+def batch_export(fmt: str, req: BatchExportRequest) -> StreamingResponse:
+    """Combined download for a batch: zip of PDFs or a summary spreadsheet."""
+    if fmt not in ("zip", "xlsx"):
+        raise HTTPException(400, "Format must be zip or xlsx.")
+    payload = batch_mod.export_from_ids(req.ids, fmt=fmt)
+    mime = ("application/zip" if fmt == "zip"
+            else "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+    return StreamingResponse(
+        io.BytesIO(payload), media_type=mime,
+        headers={"Content-Disposition": f'attachment; filename="batch_reports.{fmt}"'},
     )
 
 
@@ -170,17 +224,3 @@ def download_report(row_id: str, fmt: str) -> StreamingResponse:
         headers={"Content-Disposition":
                  f'attachment; filename="{record.get("case_id") or row_id}.{fmt}"'},
     )
-
-
-def _read_document(data: bytes, name: str) -> str:
-    """Extract text from uploaded TXT/PDF/DOCX bytes (logic kept tiny here)."""
-    lower = name.lower()
-    if lower.endswith(".pdf"):
-        from pypdf import PdfReader
-        reader = PdfReader(io.BytesIO(data))
-        return "\n".join((p.extract_text() or "") for p in reader.pages)
-    if lower.endswith(".docx"):
-        import docx
-        document = docx.Document(io.BytesIO(data))
-        return "\n".join(p.text for p in document.paragraphs)
-    return data.decode("utf-8", errors="replace")

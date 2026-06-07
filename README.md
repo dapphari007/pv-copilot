@@ -93,7 +93,12 @@ $env:EMBED_MODEL_KEY="biobert"; python scripts/build_index.py   # BioBERT (FAISS
 ```powershell
 streamlit run app.py
 ```
-Pages: **Analyze** · **History** (SQLite) · **Settings** (vector backend, model, engine).
+Pages: **Analyze** · **Batch** · **History** (SQLite) · **Settings** (vector backend, model, engine).
+
+**Batch mode** processes many cases at once (multiple file uploads and/or several
+narratives separated by `---`) with concurrent batching, then offers a combined
+**zip of PDFs** and a **summary spreadsheet**. API: `POST /analyze/batch`
+(multipart files), `POST /analyze/batch-text`, `POST /batch/export.{zip|xlsx}`.
 
 ### Run the FastAPI backend + React UI
 ```powershell

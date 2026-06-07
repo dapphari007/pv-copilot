@@ -146,6 +146,8 @@ if results:
         c2.metric("Age", entities.get("age") or "—")
         c3.metric("Gender", entities.get("gender") or "—")
         c4.metric("Weight", entities.get("weight") or "—")
+        st.markdown("**All Reported Drugs**")
+        st.write(", ".join(entities.get("all_drugs", [])) or entities.get("drug") or "—")
         st.markdown("**Adverse Events**")
         st.write(", ".join(entities.get("adverse_events", [])) or "—")
         st.json(entities, expanded=False)
