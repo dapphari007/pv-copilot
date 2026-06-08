@@ -39,11 +39,16 @@ def run_analysis(
 
     entities = extraction.extract_entities(narrative)
 
+    retrieved = analysis = None
     if engine == "LangChain" and rag_langchain.langchain_available():
-        lc = rag_langchain.analyze_case_langchain(
-            narrative, entities, model_key=model_key, backend=backend)
-        retrieved, analysis = lc["retrieved"], lc["analysis"]
-    else:
+        try:
+            lc = rag_langchain.analyze_case_langchain(
+                narrative, entities, model_key=model_key, backend=backend)
+            retrieved, analysis = lc["retrieved"], lc["analysis"]
+        except Exception as exc:  # rate limit / LLM / chain error -> degrade gracefully
+            log.warning("LangChain path failed (%s); falling back to native engine.", exc)
+
+    if analysis is None:
         retrieved = rag.retrieve_similar_cases(
             narrative, entities, model_key=model_key, backend=backend)
         analysis = analysis_mod.analyze_case(narrative, entities, retrieved)
