@@ -11,6 +11,7 @@ import config
 @lru_cache(maxsize=2)
 def get_model(model_key: str | None = None):
     """Load (and cache) the embedding model for the given registry key."""
+    from src import _sklearn_shim  # noqa: F401  (must precede sentence-transformers)
     from sentence_transformers import SentenceTransformer
 
     model_key = model_key or config.DEFAULT_MODEL_KEY
