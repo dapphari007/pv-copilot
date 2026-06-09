@@ -87,7 +87,7 @@ def _analyze_llm(case, retrieved) -> dict[str, Any]:
 
 def _analyze_rules(case, retrieved) -> dict[str, Any]:
     text = " ".join([case.get("outcome", ""), " ".join(case.get("adverse_events", [])),
-                     case.get("dechallenge", "")]).lower()
+                     case.get("dechallenge", ""), case.get("_segment_text", "")]).lower()
     criteria = {
         "Death": bool(re.search(r"death|died|fatal", text)),
         "Life Threatening": "life" in text and "threat" in text,

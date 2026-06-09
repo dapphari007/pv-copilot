@@ -106,6 +106,8 @@ def _extract_rules(text: str) -> dict[str, Any]:
             drugs.append({"name": term.title(), "role": "C", "dose": "", "route": ""})
         if len(drugs) >= 15:
             break
+    # Order by first appearance in the text; the first-mentioned drug is the PS guess.
+    drugs.sort(key=lambda d: lower.find(d["name"].lower()))
     if drugs:
         drugs[0]["role"] = "PS"
     events = []
