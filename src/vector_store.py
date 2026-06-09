@@ -79,5 +79,11 @@ def search(
             continue
         record = meta.iloc[int(idx)].to_dict()
         record["similarity"] = float(score)
+        record["_faiss_idx"] = int(idx)  # enables vector reconstruction (no re-embed)
         results.append(record)
     return results
+
+
+def reconstruct(model_key: str, faiss_idx: int):
+    """Return the stored (normalised) vector for a FAISS row — avoids re-embedding."""
+    return load_index(model_key).reconstruct(int(faiss_idx))

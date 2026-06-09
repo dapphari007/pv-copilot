@@ -39,6 +39,11 @@ def embed_texts(
     return vectors.astype("float32")
 
 
-def embed_query(text: str, model_key: str | None = None) -> np.ndarray:
-    """Embed a single query, returning a (1, dim) array."""
+@lru_cache(maxsize=512)
+def _embed_query_cached(text: str, model_key: str | None) -> np.ndarray:
     return embed_texts([text], model_key=model_key)
+
+
+def embed_query(text: str, model_key: str | None = None) -> np.ndarray:
+    """Embed a single query, returning a (1, dim) array (cached to avoid re-embeds)."""
+    return _embed_query_cached(text, model_key)

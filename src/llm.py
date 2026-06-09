@@ -25,7 +25,8 @@ def _client_for(key: str):
         from groq import Groq
     except ImportError as exc:  # pragma: no cover - dependency guard
         raise LLMError("The 'groq' package is not installed.") from exc
-    return Groq(api_key=key)
+    # Fail fast: don't burn time retrying rate-limited calls — fall back instead.
+    return Groq(api_key=key, max_retries=0, timeout=30.0)
 
 
 def _client():

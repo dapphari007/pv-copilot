@@ -8,6 +8,7 @@ spurious segments are discarded.
 from __future__ import annotations
 
 import re
+from concurrent.futures import ThreadPoolExecutor
 from typing import Any
 
 from src import pv_extraction
@@ -50,17 +51,27 @@ def split_segments(text: str) -> list[str]:
 def detect_cases(text: str) -> list[dict[str, Any]]:
     """Return validated, extracted patient cases (phantoms discarded)."""
     segments = split_segments(text)
-    cases: list[dict[str, Any]] = []
-    discarded = 0
-    for i, segment in enumerate(segments):
+    if not segments:
+        return []
+
+    def _extract(i: int, segment: str) -> dict[str, Any]:
         case = pv_extraction.extract_case(segment)
         case["_segment_index"] = i
         case["_segment_text"] = segment
+        return case
+
+    with ThreadPoolExecutor(max_workers=min(6, len(segments))) as pool:
+        extracted = list(pool.map(lambda p: _extract(*p), enumerate(segments)))
+
+    cases: list[dict[str, Any]] = []
+    discarded = 0
+    for case in extracted:
         if pv_extraction.is_valid_case(case):
             cases.append(case)
         else:
             discarded += 1
-            log.info("Discarded empty/invalid segment %d (no drug+reaction).", i)
+            log.info("Discarded empty/invalid segment %d (no drug+reaction).",
+                     case.get("_segment_index", -1))
     log.info("Cases Found = %d (from %d segment(s); %d discarded)",
              len(cases), len(segments), discarded)
     return cases

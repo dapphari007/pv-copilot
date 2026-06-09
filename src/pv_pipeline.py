@@ -6,6 +6,7 @@ a single ``upload_id`` so the dashboard reflects the CURRENT upload only.
 """
 from __future__ import annotations
 
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Any
 
 from src import case_detection, hybrid_rag, pv_analysis, pv_report, pv_storage
@@ -13,6 +14,8 @@ from src.logging_config import get_logger
 from src.settings_store import load_settings
 
 log = get_logger("analysis")
+
+MAX_WORKERS = 6  # concurrent per-case processing (LLM/IO bound)
 
 
 def _process_case(case: dict[str, Any], idx: int, upload_id: str, file_name: str | None,
@@ -57,12 +60,25 @@ def process_upload(documents: list[tuple[str, str | None]],
     upload_id = pv_storage.new_upload_id()
     log.info("Upload %s: %d document(s)", upload_id, len(documents))
 
-    results: list[dict[str, Any]] = []
+    work: list[tuple[dict[str, Any], str | None]] = []
     for text, file_name in documents:
-        cases = case_detection.detect_cases(text)
-        for idx, case in enumerate(cases):
-            results.append(_process_case(case, len(results), upload_id, file_name,
-                                          settings, report_date))
+        for case in case_detection.detect_cases(text):
+            work.append((case, file_name))
+
+    results: list[dict[str, Any]] = [None] * len(work)  # type: ignore[list-item]
+    if work:
+        with ThreadPoolExecutor(max_workers=min(MAX_WORKERS, len(work))) as pool:
+            futures = {
+                pool.submit(_process_case, case, i, upload_id, fn, settings, report_date): i
+                for i, (case, fn) in enumerate(work)
+            }
+            for fut in as_completed(futures):
+                i = futures[fut]
+                try:
+                    results[i] = fut.result()
+                except Exception as exc:  # noqa: BLE001
+                    log.exception("Case %d failed: %s", i, exc)
+    results = [r for r in results if r is not None]
 
     serious = sum(1 for r in results if r["seriousness"] == "Serious")
     summary = {

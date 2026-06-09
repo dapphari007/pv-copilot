@@ -94,7 +94,14 @@ def hybrid_search(
 
     terms = _terms(query, entities)
     narratives = [c.get("narrative", "") for c in pool]
-    cand_vecs = embeddings.embed_texts(narratives, model_key=model_key)  # normalised
+    # Reuse the vectors already stored in FAISS instead of re-embedding (big speedup).
+    if backend == "faiss" and all("_faiss_idx" in c for c in pool):
+        from src import vector_store
+        cand_vecs = np.array(
+            [vector_store.reconstruct(model_key, c["_faiss_idx"]) for c in pool],
+            dtype="float32")
+    else:
+        cand_vecs = embeddings.embed_texts(narratives, model_key=model_key)
 
     kw_raw = [_keyword_score(n, terms) for n in narratives]
     max_kw = max(kw_raw) or 1.0

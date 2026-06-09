@@ -44,7 +44,8 @@ _READY = False
 
 @contextmanager
 def _connect() -> Iterator[sqlite3.Connection]:
-    conn = sqlite3.connect(config.SQLITE_PATH)
+    conn = sqlite3.connect(config.SQLITE_PATH, timeout=10)
+    conn.execute("PRAGMA busy_timeout=8000")  # tolerate concurrent writes from threads
     conn.row_factory = sqlite3.Row
     try:
         yield conn
