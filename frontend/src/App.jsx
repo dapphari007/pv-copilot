@@ -1,25 +1,20 @@
 import { useEffect, useState } from 'react'
 import { api } from './api.js'
-import Analyze from './pages/Analyze.jsx'
-import Batch from './pages/Batch.jsx'
+import Upload from './pages/Upload.jsx'
 import History from './pages/History.jsx'
-import Settings from './pages/Settings.jsx'
-import { IconAnalyze, IconBatch, IconHistory, IconSettings, IconSun, IconMoon } from './components/icons.jsx'
+import { IconAnalyze, IconHistory, IconSun, IconMoon } from './components/icons.jsx'
 
 const NAV = [
-  { key: 'analyze', label: 'Analyze', Icon: IconAnalyze },
-  { key: 'batch', label: 'Batch', Icon: IconBatch },
+  { key: 'upload', label: 'Upload & Analyze', Icon: IconAnalyze },
   { key: 'history', label: 'History', Icon: IconHistory },
-  { key: 'settings', label: 'Settings', Icon: IconSettings },
 ]
 
 export default function App() {
-  const [page, setPage] = useState('analyze')
+  const [page, setPage] = useState('upload')
   const [status, setStatus] = useState(null)
   const [theme, setTheme] = useState(() => localStorage.getItem('pv-theme') || 'light')
 
-  function refreshStatus() { api.status().then(setStatus).catch(() => setStatus(null)) }
-  useEffect(() => { refreshStatus() }, [])
+  useEffect(() => { api.status().then(setStatus).catch(() => setStatus(null)) }, [])
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme)
     localStorage.setItem('pv-theme', theme)
@@ -29,15 +24,11 @@ export default function App() {
     <>
       <div className="nav-wrap">
         <nav className="navbar">
-          <div className="brand">
-            <span className="mark">💊</span>PV<b>Copilot</b>
-          </div>
+          <div className="brand"><span className="mark">💊</span>PV<b>Copilot</b></div>
           <div className="nav-tabs">
             {NAV.map(({ key, label, Icon }) => (
               <button key={key} className={`nav-tab ${page === key ? 'active' : ''}`}
-                onClick={() => setPage(key)}>
-                <Icon /><span>{label}</span>
-              </button>
+                onClick={() => setPage(key)}><Icon /><span>{label}</span></button>
             ))}
           </div>
           <div className="nav-right">
@@ -45,11 +36,6 @@ export default function App() {
               <span className={`dotc ${status ? 'up' : 'down'}`} />
               {status ? (status.llm_available ? 'Groq' : 'fallback') : 'offline'}
             </span>
-            {status && (
-              <span className="status-pill mono">
-                {status.settings?.vector_backend} · {status.settings?.embedding_model}
-              </span>
-            )}
             <button className="theme-toggle" title="Toggle theme"
               onClick={() => setTheme((t) => (t === 'dark' ? 'light' : 'dark'))}>
               {theme === 'dark' ? <IconSun width={17} height={17} /> : <IconMoon width={17} height={17} />}
@@ -59,10 +45,8 @@ export default function App() {
       </div>
 
       <main className="content">
-        {page === 'analyze' && <Analyze status={status} />}
-        {page === 'batch' && <Batch />}
+        {page === 'upload' && <Upload />}
         {page === 'history' && <History />}
-        {page === 'settings' && <Settings status={status} onSaved={refreshStatus} />}
       </main>
     </>
   )

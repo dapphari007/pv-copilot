@@ -1,57 +1,41 @@
-// Thin client for the FastAPI backend (proxied at /api in dev).
+// Client for the rebuilt multi-patient PV API (proxied at /api in dev).
 const BASE = '/api'
 
-async function jsonFetch(path, options = {}) {
+async function jget(path) {
+  const res = await fetch(BASE + path)
+  if (!res.ok) throw new Error(`${res.status}: ${await res.text()}`)
+  return res.json()
+}
+async function jpost(path, body) {
   const res = await fetch(BASE + path, {
-    headers: { 'Content-Type': 'application/json' },
-    ...options,
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
   })
   if (!res.ok) throw new Error(`${res.status}: ${await res.text()}`)
   return res.json()
 }
 
 export const api = {
-  status: () => jsonFetch('/status'),
-  getSettings: () => jsonFetch('/settings'),
-  saveSettings: (body) =>
-    jsonFetch('/settings', { method: 'POST', body: JSON.stringify(body) }),
-  setGroqKey: (apiKey) =>
-    jsonFetch('/settings/groq-key', { method: 'POST', body: JSON.stringify({ api_key: apiKey }) }),
-  analyze: (narrative, caseId, reportDate) =>
-    jsonFetch('/analyze', {
-      method: 'POST',
-      body: JSON.stringify({ narrative, case_id: caseId, report_date: reportDate }),
-    }),
-  analyzeUpload: async (file, caseId, reportDate) => {
-    const form = new FormData()
-    form.append('file', file)
-    const qs = new URLSearchParams({ case_id: caseId, report_date: reportDate })
-    const res = await fetch(`${BASE}/analyze/upload?${qs}`, { method: 'POST', body: form })
-    if (!res.ok) throw new Error(`${res.status}: ${await res.text()}`)
-    return res.json()
-  },
-  analyzeBatch: async (files, reportDate = '') => {
+  status: () => jget('/status'),
+  analyzeText: (text, reportDate = '') => jpost('/analyze-text', { text, report_date: reportDate }),
+  upload: async (files, reportDate = '') => {
     const form = new FormData()
     for (const f of files) form.append('files', f)
-    const qs = new URLSearchParams({ report_date: reportDate })
-    const res = await fetch(`${BASE}/analyze/batch?${qs}`, { method: 'POST', body: form })
+    const res = await fetch(`${BASE}/upload?report_date=${encodeURIComponent(reportDate)}`,
+      { method: 'POST', body: form })
     if (!res.ok) throw new Error(`${res.status}: ${await res.text()}`)
     return res.json()
   },
-  analyzeBatchText: (narratives, reportDate = '') =>
-    jsonFetch('/analyze/batch-text', {
-      method: 'POST', body: JSON.stringify({ narratives, report_date: reportDate }),
-    }),
-  batchExportUrl: (fmt) => `${BASE}/batch/export.${fmt}`,
-  batchExport: async (ids, fmt) => {
-    const res = await fetch(`${BASE}/batch/export.${fmt}`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ids }),
-    })
-    if (!res.ok) throw new Error(`${res.status}: ${await res.text()}`)
-    return res.blob()
+  dashboard: (uploadId) => jget(`/dashboard/${uploadId}`),
+  cases: (uploadId, seriousness, search) => {
+    const q = new URLSearchParams()
+    if (uploadId) q.set('upload_id', uploadId)
+    if (seriousness) q.set('seriousness', seriousness)
+    if (search) q.set('search', search)
+    return jget(`/cases?${q}`)
   },
-  history: (limit = 100) => jsonFetch(`/history?limit=${limit}`),
-  getCase: (rowId) => jsonFetch(`/cases/${rowId}`),
-  reportUrl: (rowId, fmt) => `${BASE}/cases/${rowId}/report.${fmt}`,
+  history: (search) => jget(`/history${search ? `?search=${encodeURIComponent(search)}` : ''}`),
+  getCase: (id) => jget(`/cases/${id}`),
+  reportUrl: (id, fmt) => `${BASE}/cases/${id}/report.${fmt}`,
+  zipUrl: (uploadId) => `${BASE}/uploads/${uploadId}/reports.zip`,
 }
