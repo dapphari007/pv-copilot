@@ -9,13 +9,13 @@ import io
 import zipfile
 from typing import Any
 
-from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi import Depends, FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse
+from fastapi.responses import RedirectResponse, StreamingResponse
 from pydantic import BaseModel, Field
 
 import config
-from src import pv_report, pv_storage, vectordb
+from src import auth, pv_report, pv_storage, vectordb
 from src.documents import read_document
 from src.logging_config import get_logger
 from src.pv_pipeline import process_upload
@@ -33,6 +33,82 @@ _XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 class TextRequest(BaseModel):
     text: str = Field(..., min_length=1)
     report_date: str = ""
+
+
+class LoginRequest(BaseModel):
+    email: str = Field(..., min_length=3)
+    name: str = ""
+    role: str = "pv_associate"
+
+
+class RoleRequest(BaseModel):
+    email: str
+    role: str
+
+
+# --------------------------------------------------------------------------- #
+# Authentication (JWT + roles + OAuth Google/Microsoft)
+# --------------------------------------------------------------------------- #
+@app.get("/auth/providers")
+def auth_providers() -> dict[str, Any]:
+    return {"google": auth.provider_enabled("google"),
+            "microsoft": auth.provider_enabled("microsoft"),
+            "auth_required": auth.AUTH_REQUIRED}
+
+
+@app.post("/auth/login")
+def login(req: LoginRequest) -> dict[str, Any]:
+    """Credential/dev login — issues a JWT for the given email + role."""
+    role = req.role if req.role in auth.ROLES else "viewer"
+    user = auth.upsert_user(req.email, req.name, "local", role)
+    auth.audit(user["email"], "login provider=local")
+    return {"token": auth.create_token(user), "user": user}
+
+
+@app.get("/auth/{provider}/login")
+def oauth_login(provider: str):
+    if provider not in auth.OAUTH:
+        raise HTTPException(404, "Unknown provider.")
+    if not auth.provider_enabled(provider):
+        raise HTTPException(400, f"{provider} OAuth is not configured (set client id/secret).")
+    return RedirectResponse(auth.authorize_url(provider, state=provider))
+
+
+@app.get("/auth/{provider}/callback")
+def oauth_callback(provider: str, code: str = "", state: str = ""):
+    if provider not in auth.OAUTH:
+        raise HTTPException(404, "Unknown provider.")
+    try:
+        profile = auth.exchange_code(provider, code)
+    except Exception as exc:  # noqa: BLE001
+        auth.audit("?", f"login_failed provider={provider} err={exc}")
+        raise HTTPException(401, "OAuth exchange failed.") from exc
+    user = auth.upsert_user(profile["email"], profile["name"], provider)
+    auth.audit(user["email"], f"login provider={provider}")
+    token = auth.create_token(user)
+    return RedirectResponse(f"{auth.FRONTEND_URL}/?token={token}")
+
+
+@app.get("/auth/me")
+def me(user: dict[str, Any] = Depends(auth.require_user)) -> dict[str, Any]:
+    return user
+
+
+@app.post("/auth/logout")
+def logout(user: dict[str, Any] = Depends(auth.require_user)) -> dict[str, str]:
+    auth.audit(user.get("sub", "?"), "logout")
+    return {"status": "ok"}
+
+
+@app.get("/auth/users")
+def users(_: dict[str, Any] = Depends(auth.require_role("admin"))) -> list[dict[str, Any]]:
+    return auth.list_users()
+
+
+@app.post("/auth/users/role")
+def change_role(req: RoleRequest,
+                admin: dict[str, Any] = Depends(auth.require_role("admin"))) -> dict[str, Any]:
+    return auth.set_role(req.email, req.role, by=admin.get("sub", "admin"))
 
 
 # --------------------------------------------------------------------------- #

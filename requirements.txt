@@ -33,3 +33,6 @@ python-docx>=1.1
 # --- Report export ---
 reportlab>=4.2          # PDF
 openpyxl>=3.1           # Excel
+
+# --- Auth (redo) ---
+PyJWT>=2.8
