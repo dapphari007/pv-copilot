@@ -117,10 +117,19 @@ def to_excel(report: dict[str, Any]) -> bytes:
             "case_information", "patient_information", "suspected_drug",
             "adverse_event", "seriousness_assessment", "causality_assessment",
         ):
+            if section not in report:
+                continue
             df = pd.DataFrame(
                 list(report[section].items()), columns=["Field", "Value"]
             )
             df.to_excel(writer, sheet_name=_sheet(section), index=False)
+
+        if report.get("all_drugs"):
+            pd.DataFrame(report["all_drugs"]).to_excel(
+                writer, sheet_name="All Drugs", index=False)
+        if report.get("medical_history"):
+            pd.DataFrame({"Medical History": report["medical_history"]}).to_excel(
+                writer, sheet_name="Medical History", index=False)
 
         pd.DataFrame({"AI Narrative Summary": [report["ai_narrative_summary"]]}).to_excel(
             writer, sheet_name="Narrative", index=False
@@ -233,11 +242,35 @@ def to_pdf(report: dict[str, Any]) -> bytes:
     def section(title: str, key: str) -> KeepTogether:
         return KeepTogether([Paragraph(title, h2), kv_table(report[key])])
 
+    def list_table(title: str, rows: list[dict[str, Any]]) -> KeepTogether:
+        cols = list(rows[0].keys())
+        data = [[Paragraph(f"<b>{_xml(c)}</b>", val_st) for c in cols]]
+        for r in rows:
+            data.append([Paragraph(_cell(r.get(c, "")), val_st) for c in cols])
+        table = Table(data, colWidths=[avail_w / len(cols)] * len(cols), repeatRows=1)
+        table.setStyle(TableStyle([
+            ("BACKGROUND", (0, 0), (-1, 0), LIGHT),
+            ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, ZEBRA]),
+            ("GRID", (0, 0), (-1, -1), 0.4, BORDER),
+            ("VALIGN", (0, 0), (-1, -1), "TOP"),
+            ("LEFTPADDING", (0, 0), (-1, -1), 6), ("RIGHTPADDING", (0, 0), (-1, -1), 6),
+            ("TOPPADDING", (0, 0), (-1, -1), 3), ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+        ]))
+        return KeepTogether([Paragraph(title, h2), table])
+
     flow: list[Any] = [
         header, Spacer(1, 10),
         section("Case Information", "case_information"),
         section("Patient Information", "patient_information"),
-        section("Suspected Drug Information", "suspected_drug"),
+    ]
+    if report.get("medical_history"):
+        flow.append(Paragraph("Medical History", h2))
+        for cond in report["medical_history"]:
+            flow.append(Paragraph(f"•&nbsp; {_xml(cond)}", body))
+    flow.append(section("Suspected Drug Information", "suspected_drug"))
+    if report.get("all_drugs"):
+        flow.append(list_table("All Drug Information", report["all_drugs"]))
+    flow += [
         section("Adverse Event Details", "adverse_event"),
         section("Seriousness Assessment", "seriousness_assessment"),
         section("Causality Assessment (AI-Assisted)", "causality_assessment"),
